@@ -1,0 +1,141 @@
+* {
+  box-sizing: border-box;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ===== PAGE BACKGROUND ===== */
+.login-container {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(255,140,0,0.25), transparent 40%),
+    linear-gradient(180deg, #0b0b0b, #121212);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+/* ===== MAIN WRAPPER (like landing card) ===== */
+.login-box {
+  width: 100%;
+  max-width: 1100px;
+  background: linear-gradient(180deg, #141414, #0f0f0f);
+  border-radius: 20px;
+  padding: 50px;
+  color: #fff;
+
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ===== TITLE ===== */
+.login-box h2 {
+  font-size: 42px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.login-box h2 span {
+  color: #ff8c00;
+}
+
+/* ===== SUBTITLE ===== */
+.subtitle {
+  color: #b5b5b5;
+  font-size: 15px;
+  margin-bottom: 35px;
+  max-width: 500px;
+}
+
+/* ===== FORM ===== */
+.login-box form {
+  max-width: 420px;
+}
+
+/* INPUT */
+.login-box input {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  border: none;
+  background: #1b1b1b;
+  color: #fff;
+  font-size: 14px;
+}
+
+.login-box input::placeholder {
+  color: #888;
+}
+
+.login-box input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.6);
+}
+
+/* BUTTON */
+.login-box button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #ff8c00, #ff6a00);
+  color: #111;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-box button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(255, 140, 0, 0.5);
+}
+
+/* MESSAGE */
+.message {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #ff6b6b;
+}
+
+/* SWITCH TEXT */
+.switch-text {
+  margin-top: 22px;
+  font-size: 14px;
+  color: #cfcfcf;
+}
+
+.switch-link {
+  color: #ff8c00;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ===== STATS SECTION ===== */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  margin-top: 60px;
+}
+
+.stat-card {
+  background: #1a1a1a;
+  border-radius: 16px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.stat-card h3 {
+  color: #ff8c00;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.stat-card p {
+  color: #aaa;
+  font-size: 14px;
+}
