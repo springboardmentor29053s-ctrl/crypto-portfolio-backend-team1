@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -19,41 +20,37 @@ public class UserController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    // ✅ REGISTER USER
+    // REGISTER
     @PostMapping("/register")
     public String registerUser(@RequestBody User user) {
-
         User existing = userRepository.findByEmail(user.getEmail());
         if (existing != null) {
             return "Email already exists";
         }
-
         userRepository.save(user);
         return "User registered successfully";
     }
 
-
-    // ✅ GET ALL USERS (for testing)
+    // GET USERS
     @GetMapping("/users")
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    // ✅ LOGIN USER
+    // LOGIN
     @PostMapping("/login")
-    public String login(@RequestBody User loginUser) {
-
+    public Map<String, String> login(@RequestBody User loginUser) {
         User dbUser = userRepository.findByEmail(loginUser.getEmail());
 
         if (dbUser == null) {
-            return "User not found";
+            return Map.of("error", "User not found");
         }
 
         if (!dbUser.getPassword().equals(loginUser.getPassword())) {
-            return "Wrong password";
+            return Map.of("error", "Wrong password");
         }
 
-        return jwtUtil.generateToken(dbUser.getEmail());
+        String token = jwtUtil.generateToken(dbUser.getEmail());
+        return Map.of("token", token);
     }
-
 }
