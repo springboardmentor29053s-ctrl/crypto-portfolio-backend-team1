@@ -1,37 +1,45 @@
 package com.crypto.cryptoPortfolio.entity;
 
+import jakarta.persistence.*;
+import lombok.Data;
+
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
-@lombok.Data
+@Data
 @Entity
-@Table(name = "api_keys")
+@Table(
+        name = "api_keys",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "exchange_id"})
+        }
+)
 public class ApiKey {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "exchange_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "exchange_id", nullable = false)
     private Exchange exchange;
 
+    @Column(nullable = false)
     private String apiKey;
+
+    @Column(nullable = false)
     private String apiSecret;
 
     private String label;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
-}
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+}

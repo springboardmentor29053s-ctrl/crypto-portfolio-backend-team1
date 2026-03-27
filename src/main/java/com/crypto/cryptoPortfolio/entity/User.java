@@ -32,6 +32,16 @@ public class User {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    // ✅ NEW FIELDS for email verification
+//    @Column(nullable = false)
+//    private Boolean emailVerified = false;
+//
+//    @Column(nullable = false)
+//    private Boolean accountEnabled = false;
+//
+//    @Column
+//    private LocalDateTime emailVerifiedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

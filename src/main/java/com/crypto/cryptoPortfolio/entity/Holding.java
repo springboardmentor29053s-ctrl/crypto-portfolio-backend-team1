@@ -26,6 +26,10 @@ public class Holding {
     @Column(name = "wallet_type")
     private String walletType;
 
+    // ✅ NEW: Flag to distinguish manual vs auto-calculated holdings
+    @Column(name = "is_manual")
+    private Boolean isManual = false;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -45,4 +49,3 @@ public class Holding {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

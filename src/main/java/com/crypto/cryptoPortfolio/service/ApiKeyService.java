@@ -29,6 +29,18 @@ public class ApiKeyService {
         Exchange exchange = exchangeRepository.findById(exchangeId)
                 .orElseThrow(() -> new RuntimeException("Exchange not found"));
 
+        ApiKey existing = apiKeyRepository
+                .findByUserAndExchange(user, exchange)
+                .orElse(null);
+
+        if (existing != null) {
+            existing.setApiKey(encryptionUtil.encrypt(apiKey));
+            existing.setApiSecret(encryptionUtil.encrypt(apiSecret));
+            existing.setLabel(label);
+            apiKeyRepository.save(existing);
+            return;
+        }
+
         ApiKey newKey = new ApiKey();
         newKey.setUser(user);
         newKey.setExchange(exchange);

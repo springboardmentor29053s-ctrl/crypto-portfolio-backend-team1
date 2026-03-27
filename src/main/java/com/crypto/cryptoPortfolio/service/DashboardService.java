@@ -1,112 +1,113 @@
 package com.crypto.cryptoPortfolio.service;
 
-import com.crypto.cryptoPortfolio.dto.DashboardAssetResponse;
-import com.crypto.cryptoPortfolio.dto.DashboardLiveResponse;
+import com.crypto.cryptoPortfolio.dto.DashboardSummaryResponse;
 import com.crypto.cryptoPortfolio.entity.Holding;
 import com.crypto.cryptoPortfolio.repository.HoldingRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class DashboardService {
 
+    private final PortfolioService portfolioService;
     private final HoldingRepository holdingRepository;
-    private final CoinGeckoService coinGeckoService;
+    private final BinanceService binanceService;
 
-    public DashboardService(HoldingRepository holdingRepository,
-                            CoinGeckoService coinGeckoService) {
-        this.holdingRepository = holdingRepository;
-        this.coinGeckoService = coinGeckoService;
-    }
+    public DashboardSummaryResponse getDashboard(Long userId) {
 
-    public DashboardLiveResponse getLiveDashboard(Long userId) {
+        List<Holding> holdings = holdingRepository.findByUserId(userId);
 
-        List<Holding> holdings =
-                holdingRepository.findByUserId(userId);
+        // ✅ FIX: Group holdings by symbol to prevent duplicates
+        Map<String, List<Holding>> groupedBySymbol = holdings.stream()
+                .filter(h -> h.getAssetSymbol() != null && !h.getAssetSymbol().isBlank())
+                .collect(Collectors.groupingBy(
+                        h -> h.getAssetSymbol().trim().toUpperCase()
+                ));
 
-        List<String> coinIds = new ArrayList<>();
+        BigDecimal totalValue = BigDecimal.ZERO;
+        BigDecimal totalInvested = BigDecimal.ZERO;
+        List<DashboardSummaryResponse.AssetAllocation> allocations = new ArrayList<>();
 
-        for (Holding h : holdings) {
-            if (h.getQuantity().doubleValue() > 0) {
-                coinIds.add(mapToCoinGeckoId(h.getAssetSymbol()));
+        // ✅ Process each unique symbol
+        for (Map.Entry<String, List<Holding>> entry : groupedBySymbol.entrySet()) {
+
+            String symbol = entry.getKey();
+            List<Holding> symbolHoldings = entry.getValue();
+
+            // ✅ Sum all holdings for this symbol (manual + auto)
+            BigDecimal totalQuantity = symbolHoldings.stream()
+                    .map(Holding::getQuantity)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal totalSymbolInvested = symbolHoldings.stream()
+                    .map(h -> h.getQuantity().multiply(h.getAvgCost()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // ✅ Get current price
+            BigDecimal currentPrice;
+            try {
+                String pair = symbol.endsWith("USDT") ? symbol : symbol + "USDT";
+                currentPrice = binanceService.getCurrentPrice(pair);
+                if (currentPrice == null) {
+                    currentPrice = BigDecimal.ZERO;
+                }
+            } catch (Exception e) {
+                currentPrice = BigDecimal.ZERO;
             }
+
+            // ✅ Calculate value for this symbol
+            BigDecimal symbolValue = totalQuantity.multiply(currentPrice);
+
+            totalValue = totalValue.add(symbolValue);
+            totalInvested = totalInvested.add(totalSymbolInvested);
+
+            // ✅ Store for allocation calculation
+            allocations.add(new DashboardSummaryResponse.AssetAllocation(
+                    symbol,
+                    symbolValue // We'll calculate percentage later
+            ));
         }
 
-        Map<String, Map<String, Double>> prices =
-                coinGeckoService.getPrices(coinIds);
+        // ✅ Calculate PnL
+        BigDecimal totalPnL = totalValue.subtract(totalInvested);
 
-        List<DashboardAssetResponse> assets = new ArrayList<>();
-
-        double totalValue = 0;
-        double totalCost = 0;
-
-        for (Holding h : holdings) {
-
-            double quantity = h.getQuantity().doubleValue();
-            if (quantity <= 0) continue;
-
-            double avgCost = h.getAvgCost().doubleValue();
-
-            String coinId =
-                    mapToCoinGeckoId(h.getAssetSymbol());
-
-            Map<String, Double> coinData = prices.getOrDefault(coinId, new HashMap<>());
-
-            double currentPrice = coinData.getOrDefault("price", 0.0);
-            double change24h = coinData.getOrDefault("change24h", 0.0);
-
-
-            double currentValue = quantity * currentPrice;
-            double invested = quantity * avgCost;
-            double profitLoss = currentValue - invested;
-
-            double percent = invested == 0 ? 0 :
-                    (profitLoss / invested) * 100;
-
-            DashboardAssetResponse dto =
-                    new DashboardAssetResponse();
-
-            dto.setAsset(h.getAssetSymbol());
-            dto.setQuantity(quantity);
-            dto.setAvgCost(avgCost);
-            dto.setCurrentPrice(currentPrice);
-            dto.setCurrentValue(currentValue);
-            dto.setProfitLoss(profitLoss);
-            dto.setProfitLossPercent(percent);
-            dto.setChange24h(change24h);
-
-            assets.add(dto);
-
-            totalValue += currentValue;
-            totalCost += invested;
+        BigDecimal totalPnLPercentage = BigDecimal.ZERO;
+        if (totalInvested.compareTo(BigDecimal.ZERO) > 0) {
+            totalPnLPercentage = totalPnL
+                    .divide(totalInvested, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
         }
 
-        DashboardLiveResponse response =
-                new DashboardLiveResponse();
+        // ✅ Calculate allocation percentages
+        for (DashboardSummaryResponse.AssetAllocation allocation : allocations) {
+            BigDecimal percentage = BigDecimal.ZERO;
 
-        response.setAssets(assets);
-        response.setTotalValue(totalValue);
+            if (totalValue.compareTo(BigDecimal.ZERO) > 0) {
+                // allocation.percentage currently stores symbolValue
+                BigDecimal symbolValue = allocation.getPercentage();
+                percentage = symbolValue
+                        .divide(totalValue, 4, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100))
+                        .setScale(2, RoundingMode.HALF_UP);
+            }
 
-        double totalPL = totalValue - totalCost;
-        response.setTotalProfitLoss(totalPL);
-
-        double totalPercent =
-                totalCost == 0 ? 0 : (totalPL / totalCost) * 100;
-
-        response.setTotalProfitLossPercent(totalPercent);
-
-        return response;
-    }
-
-    private String mapToCoinGeckoId(String symbol) {
-
-        switch (symbol) {
-            case "BTC": return "bitcoin";
-            case "ETH": return "ethereum";
-            case "BNB": return "binancecoin";
-            default: return symbol.toLowerCase();
+            allocation.setPercentage(percentage);
         }
+
+        return new DashboardSummaryResponse(
+                totalValue.setScale(2, RoundingMode.HALF_UP),
+                totalInvested.setScale(2, RoundingMode.HALF_UP),
+                totalPnL.setScale(2, RoundingMode.HALF_UP),
+                totalPnLPercentage.setScale(2, RoundingMode.HALF_UP),
+                allocations
+        );
     }
 }
-

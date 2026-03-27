@@ -28,14 +28,33 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {}) // enable CORS here
+                .cors(cors -> {}) // Enable CORS
                 .sessionManagement(sm ->
                         sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // ✅ UPDATED: Proper endpoint permissions
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints - No authentication required
                         .requestMatchers("/api/login", "/api/signup").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()  // All auth endpoints
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Protected endpoints - Authentication required
+                        .requestMatchers("/api/dashboard/**").authenticated()
+                        .requestMatchers("/api/portfolio/**").authenticated()
+                        .requestMatchers("/api/trade/**").authenticated()
+                        .requestMatchers("/api/holdings/**").authenticated()
+                        .requestMatchers("/api/wallet/**").authenticated()
+                        .requestMatchers("/api/alerts/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
+
+                        // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
+
+                // Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(
                         new JwtAuthFilter(jwtService),
                         UsernamePasswordAuthenticationFilter.class
@@ -55,10 +74,11 @@ public class SecurityConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:3000")
-                        .allowedMethods("*")
+                        .allowedOriginPatterns("*")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                         .allowedHeaders("*")
-                        .allowCredentials(true);
+                        .allowCredentials(true)
+                        .maxAge(3600);
             }
         };
     }

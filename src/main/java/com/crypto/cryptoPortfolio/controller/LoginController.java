@@ -70,9 +70,9 @@ public class LoginController {
         return ResponseEntity.ok("Registration Successful");
     }
 
-    @GetMapping("/test-auth")
-    public String testAuth(Authentication authentication) {
-        return "Logged in as: " + authentication.getName();
-    }
+//    @GetMapping("/test-auth")
+//    public String testAuth(Authentication authentication) {
+//        return "Logged in as: " + authentication.getName();
+//    }
 
 }
