@@ -2,7 +2,8 @@ package com.blockfoliox.crypto.controller;
 
 import com.blockfoliox.crypto.model.ApiKey;
 import com.blockfoliox.crypto.service.ApiKeyService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,12 +14,17 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:3000")
 public class ApiKeyController {
 
-    @Autowired
-    private ApiKeyService apiKeyService;
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyController.class);
 
-    // ✅ Save a new API key
+    private final ApiKeyService apiKeyService;
+
+    public ApiKeyController(ApiKeyService apiKeyService) {
+        this.apiKeyService = apiKeyService;
+    }
+
     @PostMapping("/save")
     public ApiKey saveKey(@RequestBody Map<String, String> body) {
+        log.info("Saving API key for userId={}", body.get("userId"));
         return apiKeyService.saveApiKey(
                 Long.parseLong(body.get("userId")),
                 body.get("exchangeName"),
@@ -27,12 +33,10 @@ public class ApiKeyController {
         );
     }
 
-    // ✅ Get decrypted keys for a user
     @GetMapping("/{userId}/{exchangeName}")
-    public List<ApiKey> getKeys(
-            @PathVariable Long userId,
-            @PathVariable String exchangeName
-    ) {
+    public List<ApiKey> getKeys(@PathVariable Long userId,
+                                @PathVariable String exchangeName) {
+        log.info("Fetching keys for userId={} exchange={}", userId, exchangeName);
         return apiKeyService.getDecryptedKeys(userId, exchangeName);
     }
 }

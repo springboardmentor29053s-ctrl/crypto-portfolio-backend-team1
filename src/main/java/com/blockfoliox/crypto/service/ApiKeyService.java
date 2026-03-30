@@ -7,7 +7,8 @@ import com.blockfoliox.crypto.model.User;
 import com.blockfoliox.crypto.repository.ApiKeyRepository;
 import com.blockfoliox.crypto.repository.ExchangeRepository;
 import com.blockfoliox.crypto.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,46 +16,54 @@ import java.util.List;
 @Service
 public class ApiKeyService {
 
-    @Autowired
-    private ApiKeyRepository apiKeyRepository;
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyService.class);
 
-    @Autowired
-    private ExchangeRepository exchangeRepository;
+    private final ApiKeyRepository apiKeyRepository;
+    private final ExchangeRepository exchangeRepository;
+    private final UserRepository userRepository;
+    private final EncryptionUtil encryptionUtil;
 
-    @Autowired
-    private UserRepository userRepository;
+    public ApiKeyService(ApiKeyRepository apiKeyRepository,
+                         ExchangeRepository exchangeRepository,
+                         UserRepository userRepository,
+                         EncryptionUtil encryptionUtil) {
+        this.apiKeyRepository = apiKeyRepository;
+        this.exchangeRepository = exchangeRepository;
+        this.userRepository = userRepository;
+        this.encryptionUtil = encryptionUtil;
+    }
 
-    @Autowired
-    private EncryptionUtil encryptionUtil;
-
-    // ✅ Save API key — encrypts before storing
     public ApiKey saveApiKey(Long userId, String exchangeName, String rawApiKey, String rawApiSecret) {
+        log.info("Saving API key for userId={} exchange={}", userId, exchangeName);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Exchange exchange = exchangeRepository.findByName(exchangeName);
         if (exchange == null) {
+            log.error("Exchange not found: {}", exchangeName);
             throw new RuntimeException("Exchange not found: " + exchangeName);
         }
 
         ApiKey apiKey = new ApiKey();
         apiKey.setUser(user);
         apiKey.setExchange(exchange);
-        apiKey.setApiKey(encryptionUtil.encrypt(rawApiKey));       // ✅ encrypted
-        apiKey.setApiSecret(encryptionUtil.encrypt(rawApiSecret)); // ✅ encrypted
+        apiKey.setApiKey(encryptionUtil.encrypt(rawApiKey));
+        apiKey.setApiSecret(encryptionUtil.encrypt(rawApiSecret));
         apiKey.setActive(true);
 
+        log.info(" API key saved for userId={}", userId);
         return apiKeyRepository.save(apiKey);
     }
 
-    // ✅ Get decrypted keys for a user + exchange
     public List<ApiKey> getDecryptedKeys(Long userId, String exchangeName) {
+        log.info("Fetching decrypted keys for userId={} exchange={}", userId, exchangeName);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         List<ApiKey> keys = apiKeyRepository.findByUserAndExchange_Name(user, exchangeName);
 
-        // Decrypt before returning
         keys.forEach(k -> {
             k.setApiKey(encryptionUtil.decrypt(k.getApiKey()));
             k.setApiSecret(encryptionUtil.decrypt(k.getApiSecret()));

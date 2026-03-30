@@ -15,7 +15,7 @@ public class EncryptionUtil {
     @Value("${encryption.secret.key}")
     private String secretKey;
 
-    // ✅ Encrypt — call this before saving API key to DB
+    //  Encrypt — call this before saving API key to DB
     public String encrypt(String plainText) {
         try {
             SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), ALGORITHM);
@@ -28,7 +28,7 @@ public class EncryptionUtil {
         }
     }
 
-    // ✅ Decrypt — call this before using API key from DB
+    //  Decrypt — call this before using API key from DB
     public String decrypt(String encryptedText) {
         try {
             SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), ALGORITHM);

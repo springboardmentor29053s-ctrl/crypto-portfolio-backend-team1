@@ -1,6 +1,7 @@
 package com.blockfoliox.crypto.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "api_keys")
@@ -10,23 +11,31 @@ public class ApiKey {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Which user owns this key
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Which exchange this key belongs to
     @ManyToOne
     @JoinColumn(name = "exchange_id", nullable = false)
     private Exchange exchange;
 
     @Column(name = "api_key", nullable = false)
-    private String apiKey;          // encrypted before saving
+    private String apiKey;
 
     @Column(name = "api_secret", nullable = false)
-    private String apiSecret;       // encrypted before saving
+    private String apiSecret;
+
+    private String label;  // ✅ added — e.g. "My Binance Main Account"
 
     private boolean active;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     public Long getId() { return id; }
 
@@ -42,6 +51,11 @@ public class ApiKey {
     public String getApiSecret() { return apiSecret; }
     public void setApiSecret(String apiSecret) { this.apiSecret = apiSecret; }
 
+    public String getLabel() { return label; }
+    public void setLabel(String label) { this.label = label; }
+
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }
