@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-
+// depricated
 @Entity
 @Table(name = "user_login")
 @Getter
