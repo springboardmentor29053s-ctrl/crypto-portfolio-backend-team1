@@ -101,7 +101,6 @@ public class HoldingController {
 
             response.add(data);
         }
-
         return response;
     }
 
