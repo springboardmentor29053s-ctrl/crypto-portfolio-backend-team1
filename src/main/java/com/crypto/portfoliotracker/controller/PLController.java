@@ -2,7 +2,11 @@ package com.crypto.portfoliotracker.controller;
 
 import com.crypto.portfoliotracker.entity.PLReport;
 import com.crypto.portfoliotracker.entity.TaxTransaction;
+import com.crypto.portfoliotracker.entity.Trade;
+import com.crypto.portfoliotracker.entity.Holding;
 import com.crypto.portfoliotracker.entity.User;
+import com.crypto.portfoliotracker.repository.PLReportRepository;
+import com.crypto.portfoliotracker.repository.TaxTransactionRepository;
 import com.crypto.portfoliotracker.service.PLReportService;
 import com.crypto.portfoliotracker.service.TaxService;
 import com.crypto.portfoliotracker.service.UserService;
@@ -13,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +38,17 @@ public class PLController {
     private UserService userService;
 
     /**
+     * Simple test endpoint to verify backend is working
+     */
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, String>> testBackend() {
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "Backend is running");
+        response.put("timestamp", new java.util.Date().toString());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Get current user
      */
     private User getCurrentUser(UserDetails userDetails) {
@@ -43,123 +59,13 @@ public class PLController {
      * Get all P&L reports for user
      */
     @GetMapping("/reports")
-    public ResponseEntity<List<PLReport>> getReports(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<List<PLReport>> getPLReports(@AuthenticationPrincipal UserDetails userDetails) {
         try {
             User user = getCurrentUser(userDetails);
             List<PLReport> reports = plReportService.getUserReports(user);
             return ResponseEntity.ok(reports);
         } catch (Exception e) {
-            System.err.println("Error fetching P&L reports: " + e.getMessage());
             return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Get specific P&L report
-     */
-    @GetMapping("/reports/{reportId}")
-    public ResponseEntity<PLReport> getReport(@PathVariable Long reportId,
-                                          @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User user = getCurrentUser(userDetails);
-            PLReport report = plReportService.getReportById(user, reportId);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            System.err.println("Error fetching P&L report: " + e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    /**
-     * Generate custom P&L report
-     */
-    @PostMapping("/reports/generate")
-    public ResponseEntity<PLReport> generateCustomReport(@RequestBody Map<String, Object> requestData,
-                                                      @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User user = getCurrentUser(userDetails);
-            
-            String reportType = (String) requestData.get("reportType");
-            LocalDateTime startDate = LocalDateTime.parse((String) requestData.get("startDate"));
-            LocalDateTime endDate = LocalDateTime.parse((String) requestData.get("endDate"));
-            
-            PLReport report = plReportService.generatePLReport(user, reportType, startDate, endDate);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            System.err.println("Error generating custom P&L report: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Generate monthly P&L report
-     */
-    @PostMapping("/reports/monthly")
-    public ResponseEntity<PLReport> generateMonthlyReport(@RequestBody Map<String, Object> requestData,
-                                                         @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User user = getCurrentUser(userDetails);
-            int year = (Integer) requestData.get("year");
-            int month = (Integer) requestData.get("month");
-            
-            PLReport report = plReportService.generateMonthlyReport(user, year, month);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            System.err.println("Error generating monthly P&L report: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Generate quarterly P&L report
-     */
-    @PostMapping("/reports/quarterly")
-    public ResponseEntity<PLReport> generateQuarterlyReport(@RequestBody Map<String, Object> requestData,
-                                                           @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User user = getCurrentUser(userDetails);
-            int year = (Integer) requestData.get("year");
-            int quarter = (Integer) requestData.get("quarter");
-            
-            PLReport report = plReportService.generateQuarterlyReport(user, year, quarter);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            System.err.println("Error generating quarterly P&L report: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Generate yearly P&L report
-     */
-    @PostMapping("/reports/yearly")
-    public ResponseEntity<PLReport> generateYearlyReport(@RequestBody Map<String, Object> requestData,
-                                                      @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User user = getCurrentUser(userDetails);
-            int year = (Integer) requestData.get("year");
-            
-            PLReport report = plReportService.generateYearlyReport(user, year);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            System.err.println("Error generating yearly P&L report: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Delete P&L report
-     */
-    @DeleteMapping("/reports/{reportId}")
-    public ResponseEntity<?> deleteReport(@PathVariable Long reportId,
-                                       @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            User user = getCurrentUser(userDetails);
-            plReportService.deleteReport(user, reportId);
-            return ResponseEntity.ok(Map.of("message", "Report deleted successfully"));
-        } catch (Exception e) {
-            System.err.println("Error deleting P&L report: " + e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -177,7 +83,7 @@ public class PLController {
             
             PLReport currentYearReport = plReportService.generatePLReport(user, "YEARLY", startOfYear, now);
             
-            Map<String, Object> summary = new HashMap<>();
+            java.util.Map<String, Object> summary = new java.util.HashMap<>();
             summary.put("totalInvested", currentYearReport.getTotalInvested());
             summary.put("totalValue", currentYearReport.getTotalValue());
             summary.put("totalProfitLoss", currentYearReport.getTotalProfitLoss());
@@ -188,11 +94,30 @@ public class PLController {
             summary.put("unrealizedLosses", currentYearReport.getUnrealizedLosses());
             summary.put("totalTrades", currentYearReport.getTotalTrades());
             summary.put("winRate", currentYearReport.getWinRate());
-            summary.put("reportGeneratedAt", currentYearReport.getGeneratedAt());
             
             return ResponseEntity.ok(summary);
         } catch (Exception e) {
-            System.err.println("Error fetching P&L summary: " + e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * Generate P&L report for date range
+     */
+    @PostMapping("/generate")
+    public ResponseEntity<PLReport> generatePLReport(
+            @RequestBody Map<String, Object> requestBody,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User user = getCurrentUser(userDetails);
+            
+            String reportType = (String) requestBody.get("reportType");
+            LocalDateTime startDate = LocalDateTime.parse((String) requestBody.get("startDate"));
+            LocalDateTime endDate = LocalDateTime.parse((String) requestBody.get("endDate"));
+            
+            PLReport report = plReportService.generatePLReport(user, reportType, startDate, endDate);
+            return ResponseEntity.ok(report);
+        } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
     }
@@ -203,7 +128,7 @@ public class PLController {
     @GetMapping("/tax/transactions")
     public ResponseEntity<List<TaxTransaction>> getTaxTransactions(@AuthenticationPrincipal UserDetails userDetails) {
         // Tax report functionality disabled
-        return ResponseEntity.ok(new ArrayList<>());
+        return ResponseEntity.ok(new java.util.ArrayList<>());
     }
 
     /**
@@ -213,7 +138,7 @@ public class PLController {
     public ResponseEntity<List<TaxTransaction>> getTaxTransactionsByYear(@PathVariable int year,
                                                                       @AuthenticationPrincipal UserDetails userDetails) {
         // Tax report functionality disabled
-        return ResponseEntity.ok(new ArrayList<>());
+        return ResponseEntity.ok(new java.util.ArrayList<>());
     }
 
     /**
@@ -223,7 +148,7 @@ public class PLController {
     public ResponseEntity<List<TaxTransaction>> generateTaxTransactions(@PathVariable int year,
                                                                       @AuthenticationPrincipal UserDetails userDetails) {
         // Tax report functionality disabled
-        return ResponseEntity.ok(new ArrayList<>());
+        return ResponseEntity.ok(new java.util.ArrayList<>());
     }
 
     /**
@@ -234,51 +159,42 @@ public class PLController {
                                                             @AuthenticationPrincipal UserDetails userDetails) {
         // Tax report functionality disabled
         Map<String, Object> emptySummary = new HashMap<>();
-        emptySummary.put("taxYear", year);
-        emptySummary.put("totalGains", BigDecimal.ZERO);
-        emptySummary.put("totalLosses", BigDecimal.ZERO);
-        emptySummary.put("totalEstimatedTax", BigDecimal.ZERO);
-        emptySummary.put("transactionCount", 0);
-        emptySummary.put("shortTermGains", BigDecimal.ZERO);
-        emptySummary.put("longTermGains", BigDecimal.ZERO);
-        emptySummary.put("ordinaryIncome", BigDecimal.ZERO);
-        emptySummary.put("netGains", BigDecimal.ZERO);
+        emptySummary.put("totalTaxLiability", BigDecimal.ZERO);
+        emptySummary.put("totalCapitalGains", BigDecimal.ZERO);
+        emptySummary.put("totalDeductions", BigDecimal.ZERO);
+        emptySummary.put("taxableIncome", BigDecimal.ZERO);
+        emptySummary.put("year", year);
         return ResponseEntity.ok(emptySummary);
     }
 
     /**
-     * Export tax transactions to CSV - DISABLED
+     * Export P&L report to CSV
      */
-    @GetMapping("/tax/export/{year}")
-    public ResponseEntity<String> exportTaxTransactions(@PathVariable int year,
-                                                      @AuthenticationPrincipal UserDetails userDetails) {
-        // Tax report functionality disabled - return empty CSV
-        String emptyCsv = "Date,Type,Asset,Quantity,Price USD,Total USD,Fee USD,Cost Basis,Proceeds,Gain/Loss,Holding Period,Gain/Loss Type,Tax Event Type,Taxable Amount,Tax Rate,Estimated Tax,Notes\n";
-        return ResponseEntity.ok()
-            .header("Content-Type", "text/csv")
-            .header("Content-Disposition", "attachment; filename=tax_transactions_" + year + ".csv")
-            .body(emptyCsv);
-    }
-
-    /**
-     * Get available report years
-     */
-    @GetMapping("/reports/years")
-    public ResponseEntity<List<Integer>> getAvailableReportYears(@AuthenticationPrincipal UserDetails userDetails) {
+    @GetMapping("/export/{reportId}")
+    public ResponseEntity<byte[]> exportPLReport(@PathVariable Long reportId,
+                                           @AuthenticationPrincipal UserDetails userDetails) {
         try {
             User user = getCurrentUser(userDetails);
-            List<PLReport> reports = plReportService.getUserReports(user);
+            PLReport report = plReportService.getReportById(getCurrentUser(userDetails), reportId);
             
-            // Extract unique years from reports
-            List<Integer> years = reports.stream()
-                .map(report -> report.getStartDate().getYear())
-                .distinct()
-                .sorted()
-                .collect(java.util.stream.Collectors.toList());
+            if (report == null || !report.getUser().getId().equals(user.getId())) {
+                return ResponseEntity.notFound().build();
+            }
             
-            return ResponseEntity.ok(years);
+            // Generate CSV content
+            StringBuilder csv = new StringBuilder();
+            csv.append("Date,Asset,Type,Quantity,Price,Total,Profit/Loss\n");
+            
+            // Add report data to CSV
+            // This is a simplified version - you'd add actual trade data here
+            
+            byte[] csvBytes = csv.toString().getBytes();
+            
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=pl_report_" + reportId + ".csv")
+                    .header("Content-Type", "text/csv")
+                    .body(csvBytes);
         } catch (Exception e) {
-            System.err.println("Error fetching available report years: " + e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }

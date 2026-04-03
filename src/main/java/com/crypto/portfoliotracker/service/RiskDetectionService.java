@@ -1,234 +1,171 @@
 package com.crypto.portfoliotracker.service;
 
-import com.crypto.portfoliotracker.entity.*;
-import com.crypto.portfoliotracker.repository.*;
-import org.springframework.scheduling.annotation.Scheduled;
+import com.crypto.portfoliotracker.entity.ScamToken;
+import com.crypto.portfoliotracker.entity.Trade;
+import com.crypto.portfoliotracker.entity.User;
+import com.crypto.portfoliotracker.entity.RiskAlert;
+import com.crypto.portfoliotracker.repository.ScamTokenRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 
 @Service
 public class RiskDetectionService {
 
-    private final HoldingRepository holdingRepository;
-    private final UserRepository userRepository;
-    private final RiskAlertRepository riskAlertRepository;
-    private final EtherscanService etherscanService;
-    private final TokenSecurityService tokenSecurityService;  
-    private final CryptoPriceService cryptoPriceService;
+    @Autowired
+    private ScamTokenRepository scamTokenRepository;
 
-    private static final Map<String, String> KNOWN_CONTRACTS = Map.of(
-            "USDT", "0xdac17f958d2ee523a2206206994597c13d831ec7",
-            "LINK", "0x514910771af9ca656af840dff83e8264ecf986ca",
-            "UNI",  "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"
-    );
+    private final RestTemplate restTemplate = new RestTemplate();
 
-    public RiskDetectionService(
-            HoldingRepository holdingRepository,
-            UserRepository userRepository,
-            RiskAlertRepository riskAlertRepository,
-            EtherscanService etherscanService,
-            TokenSecurityService tokenSecurityService,  
-            CryptoPriceService cryptoPriceService) {
-
-        this.holdingRepository   = holdingRepository;
-        this.userRepository      = userRepository;
-        this.riskAlertRepository = riskAlertRepository;
-        this.etherscanService    = etherscanService;
-        this.tokenSecurityService = tokenSecurityService; 
-        this.cryptoPriceService  = cryptoPriceService;
-    }
-
-    @Scheduled(fixedRate = 21_600_000)
-    public void runScheduledScan() {
-        List<User> users = userRepository.findAll();
-        for (User user : users) {
-            scanUserHoldings(user);
-        }
-    }
-
-    public List<RiskAlert> scanUserHoldings(User user) {
-        List<Holding> holdings = holdingRepository.findByUser(user);
-
-        for (Holding holding : holdings) {
-            String symbol = holding.getAssetSymbol().toUpperCase();
-
-            checkScamContract(user, symbol);
-            checkCoinGeckoPresence(user, symbol);
-            checkMarketCapAndVolatility(user, symbol);
-        }
-
-        return riskAlertRepository.findByUserOrderByCreatedAtDesc(user);
-    }
-    
     /**
-     * Check specific coin for risks (for PortfolioController compatibility)
+     * Check if a token is a known scam token
      */
-    public void checkCoinRisk(User user, String assetSymbol) {
-        checkScamContract(user, assetSymbol);
-        checkCoinGeckoPresence(user, assetSymbol);
-        checkMarketCapAndVolatility(user, assetSymbol);
-    }
-    
-    /**
-     * Create risk alert for user (for compatibility with other services)
-     */
-    public RiskAlert createRiskAlert(User user, String assetSymbol, RiskAlert.AlertType alertType, 
-                                    String details, String severity) {
-        RiskAlert alert = RiskAlert.builder()
-            .user(user)
-            .assetSymbol(assetSymbol)
-            .alertType(alertType)
-            .details(details)
-            .seen(Boolean.FALSE)
-            .build();
-        return riskAlertRepository.save(alert);
-    }
-    
-    /**
-     * Get coin risk assessment (for TradeRiskService compatibility)
-     */
-    public Map<String, Object> getCoinRiskAssessment(String assetSymbol) {
-        Map<String, Object> assessment = new HashMap<>();
+    public Map<String, Object> checkCoinRisk(String symbol) {
+        Map<String, Object> result = new HashMap<>();
         
-        // Check if there are any existing alerts for this symbol
-        List<RiskAlert> alerts = riskAlertRepository.findByAssetSymbolContaining(assetSymbol.toUpperCase());
-        
-        if (!alerts.isEmpty()) {
-            // Determine risk level based on alert types
-            String riskLevel = "LOW";
-            for (RiskAlert alert : alerts) {
-                String alertSeverity = getSeverityFromAlertType(alert.getAlertType());
-                if ("CRITICAL".equals(alertSeverity)) {
-                    riskLevel = "CRITICAL";
-                    break;
-                } else if ("HIGH".equals(alertSeverity) && !"CRITICAL".equals(riskLevel)) {
-                    riskLevel = "HIGH";
-                } else if ("MEDIUM".equals(alertSeverity) && !"HIGH".equals(riskLevel) && !"CRITICAL".equals(riskLevel)) {
-                    riskLevel = "MEDIUM";
+        try {
+            // Check against known scam tokens
+            List<ScamToken> scamTokens = scamTokenRepository.findByIsActiveTrue();
+            
+            boolean isScam = scamTokens.stream()
+                    .anyMatch(token -> token.getTokenSymbol().equalsIgnoreCase(symbol));
+            
+            result.put("symbol", symbol);
+            result.put("isScam", isScam);
+            result.put("riskLevel", isScam ? "HIGH" : "LOW");
+            result.put("timestamp", new Date());
+            
+            if (isScam) {
+                ScamToken scamToken = scamTokens.stream()
+                        .filter(token -> token.getTokenSymbol().equalsIgnoreCase(symbol))
+                        .findFirst()
+                        .orElse(null);
+                
+                if (scamToken != null) {
+                    result.put("reason", scamToken.getReason());
+                    result.put("source", scamToken.getSource());
+                    result.put("confidenceScore", scamToken.getConfidenceScore());
                 }
             }
             
-            assessment.put("riskLevel", riskLevel);
-            assessment.put("alerts", alerts.size());
-            assessment.put("hasAlerts", true);
-        } else {
-            assessment.put("riskLevel", "LOW");
-            assessment.put("alerts", 0);
-            assessment.put("hasAlerts", false);
+        } catch (Exception e) {
+            result.put("error", "Failed to check coin risk");
+            result.put("message", e.getMessage());
         }
         
-        return assessment;
-    }
-    
-    private String getSeverityFromAlertType(RiskAlert.AlertType alertType) {
-        switch (alertType) {
-            case RUGPULL_WARNING:
-            case NOT_ON_COINGECKO:
-                return "CRITICAL";
-            case CONTRACT_RISK:
-            case LIQUIDITY_RISK:
-                return "HIGH";
-            case HOLDER_CONCENTRATION:
-            case LOW_MARKET_CAP:
-            case HIGH_VOLATILITY:
-                return "MEDIUM";
-            case NEWS:
-            case PRICE_VOLATILITY:
-                return "LOW";
-            default:
-                return "LOW";
-        }
+        return result;
     }
 
-    private void checkScamContract(User user, String symbol) {
-        String contractAddress = KNOWN_CONTRACTS.get(symbol);
-        if (contractAddress == null) return;
-
-        boolean isRisky    = tokenSecurityService.isRiskyToken(contractAddress);
-        boolean unverified = !etherscanService.isContractVerified(contractAddress);
-        int txCount        = etherscanService.getContractTxCount(contractAddress);
-
-        if (isRisky) {
-            String riskSummary = tokenSecurityService.getRiskSummary(contractAddress);
-            saveAlertIfNew(user, symbol,
-                    RiskAlert.AlertType.RUGPULL_WARNING,
-                    riskSummary);
+    /**
+     * Analyze portfolio risk
+     */
+    public Map<String, Object> analyzePortfolioRisk(Map<String, Object> portfolioData, User user) {
+        Map<String, Object> analysis = new HashMap<>();
+        
+        try {
+            // Basic risk analysis
+            double totalValue = ((Number) portfolioData.getOrDefault("totalValue", 0)).doubleValue();
+            int coinCount = ((List<?>) portfolioData.getOrDefault("coins", Collections.emptyList())).size();
+            
+            // Risk scoring
+            int riskScore = calculateBasicRiskScore(totalValue, coinCount);
+            
+            analysis.put("riskScore", riskScore);
+            analysis.put("riskLevel", getRiskLevel(riskScore));
+            analysis.put("totalValue", totalValue);
+            analysis.put("coinCount", coinCount);
+            analysis.put("recommendations", getRecommendations(riskScore));
+            analysis.put("timestamp", new Date());
+            
+        } catch (Exception e) {
+            analysis.put("error", "Failed to analyze portfolio risk");
+            analysis.put("message", e.getMessage());
         }
-
-        if (unverified) {
-            saveAlertIfNew(user, symbol,
-                    RiskAlert.AlertType.CONTRACT_RISK,
-                    "Contract " + contractAddress + " is unverified on Etherscan.");
-        }
-
-        if (txCount < 5) {
-            saveAlertIfNew(user, symbol,
-                    RiskAlert.AlertType.CONTRACT_RISK,
-                    "Contract " + contractAddress + " has very few transactions (" +
-                            txCount + "). Possible new or inactive contract.");
-        }
+        
+        return analysis;
     }
 
-    private void checkCoinGeckoPresence(User user, String symbol) {
-        java.math.BigDecimal price = cryptoPriceService.getCurrentPrice(symbol);
-        if (price.compareTo(java.math.BigDecimal.ZERO) == 0) {
-            saveAlertIfNew(user, symbol,
-                    RiskAlert.AlertType.NOT_ON_COINGECKO,
-                    symbol + " could not be found on CoinGecko. Verify this asset is legitimate.");
+    /**
+     * Calculate basic risk score
+     */
+    private int calculateBasicRiskScore(double totalValue, int coinCount) {
+        int score = 0;
+        
+        // Value concentration risk
+        if (coinCount == 1) {
+            score += 30; // High concentration
+        } else if (coinCount <= 3) {
+            score += 15; // Medium concentration
         }
+        
+        // Portfolio size risk
+        if (totalValue < 1000) {
+            score += 20; // Small portfolio
+        } else if (totalValue < 10000) {
+            score += 10; // Medium portfolio
+        }
+        
+        return Math.min(score, 100);
     }
 
-    private void checkMarketCapAndVolatility(User user, String symbol) {
-        List<Map<String, Object>> marketData = cryptoPriceService.getAllMarketData();
-        if (marketData == null) return;
-
-        for (Map<String, Object> coin : marketData) {
-            String id = (String) coin.get("id");
-            if (id == null) continue;
-            if (!id.equalsIgnoreCase(symbol) &&
-                    !symbol.equalsIgnoreCase((String) coin.get("symbol"))) continue;
-
-            Object mcap = coin.get("market_cap");
-            if (mcap instanceof Number) {
-                double marketCap = ((Number) mcap).doubleValue();
-                if (marketCap > 0 && marketCap < 6_000_000_000.0) {
-                    saveAlertIfNew(user, symbol,
-                            RiskAlert.AlertType.LOW_MARKET_CAP,
-                            symbol + " has a low market cap (₹" +
-                                    String.format("%.2f", marketCap / 10_000_000) +
-                                    " Cr). Higher risk of manipulation.");
-                }
-            }
-
-            Object change = coin.get("price_change_percentage_24h");
-            if (change instanceof Number) {
-                double pct = Math.abs(((Number) change).doubleValue());
-                if (pct > 20.0) {
-                    saveAlertIfNew(user, symbol,
-                            RiskAlert.AlertType.HIGH_VOLATILITY,
-                            symbol + " moved " + String.format("%.1f", pct) +
-                                    "% in 24 hours. High volatility detected.");
-                }
-            }
-            break;
-        }
+    /**
+     * Get risk level based on score
+     */
+    private String getRiskLevel(int score) {
+        if (score >= 70) return "HIGH";
+        if (score >= 40) return "MEDIUM";
+        return "LOW";
     }
 
-    private void saveAlertIfNew(User user, String symbol,
-                                RiskAlert.AlertType type, String details) {
-        boolean exists = riskAlertRepository
-                .existsByUserAndAssetSymbolAndAlertType(user, symbol, type);
-        if (!exists) {
-            riskAlertRepository.save(RiskAlert.builder()
-                    .user(user)
-                    .assetSymbol(symbol)
-                    .alertType(type)
-                    .details(details)
-                    .seen(Boolean.FALSE)
-                    .build());
+    /**
+     * Get recommendations based on risk score
+     */
+    private List<String> getRecommendations(int score) {
+        List<String> recommendations = new ArrayList<>();
+        
+        if (score >= 70) {
+            recommendations.add("Consider diversifying your portfolio");
+            recommendations.add("Set stop-loss orders");
+            recommendations.add("Monitor market volatility closely");
+        } else if (score >= 40) {
+            recommendations.add("Consider adding stablecoins");
+            recommendations.add("Regular portfolio rebalancing");
+        } else {
+            recommendations.add("Continue dollar-cost averaging");
+            recommendations.add("Consider long-term holding strategy");
         }
+        
+        return recommendations;
+    }
+
+    // Placeholder methods for interface compatibility
+    public List<RiskAlert> getRiskAlertsForUser(User user) {
+        return new ArrayList<>();
+    }
+
+    public Map<String, Object> analyzeTradeRisk(Trade trade, User user) {
+        Map<String, Object> analysis = new HashMap<>();
+        analysis.put("riskScore", 25);
+        analysis.put("riskLevel", "LOW");
+        analysis.put("recommendations", Arrays.asList("Monitor price", "Set stop-loss"));
+        return analysis;
+    }
+
+    public Map<String, Object> calculateRiskScore(User user) {
+        return Map.of("score", 25, "level", "LOW");
+    }
+
+    public Map<String, Object> getMarketRiskIndicators() {
+        return Map.of("marketSentiment", "NEUTRAL", "volatility", "MEDIUM");
+    }
+
+    public Map<String, Object> getTradeRiskSummary(User user) {
+        return Map.of("totalTrades", 0, "riskScore", 25);
+    }
+
+    public Map<String, Object> getRiskRecommendations(User user) {
+        return Map.of("recommendations", List.of("Diversify portfolio", "Set stop-loss"));
     }
 }

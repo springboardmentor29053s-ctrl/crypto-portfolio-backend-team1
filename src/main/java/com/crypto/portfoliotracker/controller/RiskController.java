@@ -2,111 +2,129 @@ package com.crypto.portfoliotracker.controller;
 
 import com.crypto.portfoliotracker.entity.RiskAlert;
 import com.crypto.portfoliotracker.entity.User;
-import com.crypto.portfoliotracker.repository.RiskAlertRepository;
-import com.crypto.portfoliotracker.repository.UserRepository;
 import com.crypto.portfoliotracker.service.RiskDetectionService;
-
+import com.crypto.portfoliotracker.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 @RestController
 @RequestMapping("/api/risk")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"})
 public class RiskController {
 
-    private final RiskAlertRepository riskAlertRepository;
-    private final UserRepository userRepository;
-    private final RiskDetectionService riskDetectionService;
+    @Autowired
+    private RiskDetectionService riskDetectionService;
 
-    public RiskController(
-            RiskAlertRepository riskAlertRepository,
-            UserRepository userRepository,
-            RiskDetectionService riskDetectionService) {
+    @Autowired
+    private UserService userService;
 
-        this.riskAlertRepository = riskAlertRepository;
-        this.userRepository = userRepository;
-        this.riskDetectionService = riskDetectionService;
-    }
-
-    // GET /api/risk/alerts — all alerts for user
+    /**
+     * Get all risk alerts for user
+     */
     @GetMapping("/alerts")
-    public List<RiskAlert> getAlerts(Authentication auth) {
-        User user = getUser(auth);
-        return riskAlertRepository.findByUserOrderByCreatedAtDesc(user);
-    }
-
-    // GET /api/risk/alerts/unread — only unseen alerts
-    @GetMapping("/alerts/unread")
-    public List<RiskAlert> getUnreadAlerts(Authentication auth) {
-        User user = getUser(auth);
-        return riskAlertRepository.findByUserAndSeenFalseOrderByCreatedAtDesc(user);
-    }
-
-    // GET /api/risk/alerts/count — unread count (for notification badge)
-    @GetMapping("/alerts/count")
-    public Map<String, Long> getUnreadCount(Authentication auth) {
-        User user = getUser(auth);
-        Map<String, Long> response = new HashMap<>();
-        response.put("unread", riskAlertRepository.countByUserAndSeenFalse(user));
-        return response;
-    }
-
-    // PATCH /api/risk/alerts/{id}/seen — mark one alert as seen
-    @PatchMapping("/alerts/{id}/seen")
-    public ResponseEntity<?> markSeen(@PathVariable Long id, Authentication auth) {
-        User user = getUser(auth);
-        RiskAlert alert = riskAlertRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Alert not found"));
-
-        if (!alert.getUser().getId().equals(user.getId())) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Forbidden");
-            return ResponseEntity.status(403).body(error);
-        }
-
-        alert.setSeen(true);
-        riskAlertRepository.save(alert);
-        
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Marked as seen");
-        return ResponseEntity.ok(response);
-    }
-
-    // PATCH /api/risk/alerts/seen-all — mark all alerts as seen
-    @PatchMapping("/alerts/seen-all")
-    public ResponseEntity<?> markAllSeen(Authentication auth) {
-        User user = getUser(auth);
-        List<RiskAlert> unread = riskAlertRepository
-                .findByUserAndSeenFalseOrderByCreatedAtDesc(user);
-        unread.forEach(alert -> alert.setSeen(true));
-        riskAlertRepository.saveAll(unread);
-        
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "All alerts marked as seen");
-        return ResponseEntity.ok(response);
-    }
-
-    // POST /api/risk/scan — manually trigger a scan for current user
-    @PostMapping("/scan")
-    public ResponseEntity<?> triggerScan(Authentication auth) {
-        User user = getUser(auth);
+    public ResponseEntity<List<RiskAlert>> getRiskAlerts(@AuthenticationPrincipal UserDetails userDetails) {
         try {
-            List<RiskAlert> alerts = riskDetectionService.scanUserHoldings(user);
+            User user = userService.getUserByEmail(userDetails.getUsername());
+            List<RiskAlert> alerts = riskDetectionService.getRiskAlertsForUser(user);
             return ResponseEntity.ok(alerts);
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Scan failed: " + e.getMessage());
-            return ResponseEntity.status(500).body(error);
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    private User getUser(Authentication auth) {
-        return userRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    /**
+     * Analyze portfolio risk
+     */
+    @PostMapping("/analyze")
+    public ResponseEntity<Map<String, Object>> analyzePortfolioRisk(
+            @RequestBody Map<String, Object> portfolioData,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User user = userService.getUserByEmail(userDetails.getUsername());
+            
+            Map<String, Object> riskAnalysis = riskDetectionService.analyzePortfolioRisk(
+                portfolioData, user);
+            
+            List<Map<String, Object>> riskAlerts = new ArrayList<>();
+            Map<String, Object> recommendations = new HashMap<>();
+            recommendations.put("portfolio", Arrays.asList(
+                "Diversify across different asset classes",
+                "Consider stablecoin allocation", 
+                "Set stop-loss orders",
+                "Regular portfolio rebalancing"
+            ));
+            riskAlerts.add(recommendations);
+            riskAnalysis.put("riskAlerts", riskAlerts);
+            
+            return ResponseEntity.ok(riskAnalysis);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to analyze portfolio risk");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    /**
+     * Check specific coin risk
+     */
+    @PostMapping("/check-coin")
+    public ResponseEntity<Map<String, Object>> checkCoinRisk(
+            @RequestBody Map<String, Object> coinData) {
+        try {
+            String symbol = (String) coinData.get("symbol");
+            Map<String, Object> riskCheck = riskDetectionService.checkCoinRisk(symbol);
+            
+            return ResponseEntity.ok(riskCheck);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to check coin risk");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    /**
+     * Get risk score for portfolio
+     */
+    @GetMapping("/score")
+    public ResponseEntity<Map<String, Object>> getRiskScore(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User user = userService.getUserByEmail(userDetails.getUsername());
+            Map<String, Object> riskScore = riskDetectionService.calculateRiskScore(user);
+            
+            return ResponseEntity.ok(riskScore);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to calculate risk score");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    /**
+     * Get market risk indicators
+     */
+    @GetMapping("/market-indicators")
+    public ResponseEntity<Map<String, Object>> getMarketRiskIndicators() {
+        try {
+            Map<String, Object> indicators = riskDetectionService.getMarketRiskIndicators();
+            return ResponseEntity.ok(indicators);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to fetch market risk indicators");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 }

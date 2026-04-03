@@ -33,6 +33,9 @@ public class Holding {
     @Column(name = "avg_cost", precision = 20, scale = 8)
     private BigDecimal avgCost;
 
+    @Column(name = "current_price", precision = 20, scale = 8)
+    private BigDecimal currentPrice;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "wallet_type")
     private WalletType walletType;
@@ -85,6 +88,9 @@ public class Holding {
 
     public BigDecimal getAvgCost() { return avgCost; }
     public void setAvgCost(BigDecimal avgCost) { this.avgCost = avgCost; }
+
+    public BigDecimal getCurrentPrice() { return currentPrice; }
+    public void setCurrentPrice(BigDecimal currentPrice) { this.currentPrice = currentPrice; }
 
     public WalletType getWalletType() { return walletType; }
     public void setWalletType(WalletType walletType) { this.walletType = walletType; }
