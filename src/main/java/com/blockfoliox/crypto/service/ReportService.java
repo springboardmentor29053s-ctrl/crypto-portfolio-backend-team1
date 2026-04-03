@@ -145,7 +145,9 @@ public class ReportService {
                     .append(t.getQuantity()).append(",")
                     .append(t.getPrice()).append(",")
                     .append(total.setScale(2, RoundingMode.HALF_UP)).append(",")
-                    .append(t.getFee() != null ? t.getFee() : "0").append(",")
+                    .append(t.getFee() != null
+                            ? t.getFee().setScale(8, RoundingMode.HALF_UP).toPlainString()
+                            : "0.00000000").append(",")
                     .append(t.getExecutedAt()).append("\n");
         }
 
