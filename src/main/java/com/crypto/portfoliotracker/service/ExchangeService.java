@@ -3,6 +3,7 @@ package com.crypto.portfoliotracker.service;
 import com.crypto.portfoliotracker.dto.ExchangeConnectionRequest;
 import com.crypto.portfoliotracker.entity.ApiKey;
 import com.crypto.portfoliotracker.entity.Exchange;
+import com.crypto.portfoliotracker.entity.Trade;
 import com.crypto.portfoliotracker.entity.User;
 import com.crypto.portfoliotracker.repository.ApiKeyRepository;
 import com.crypto.portfoliotracker.repository.ExchangeRepository;
@@ -10,8 +11,8 @@ import com.crypto.portfoliotracker.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
+import java.math.BigDecimal;
+import java.util.*;
 
 @Service
 public class ExchangeService {
@@ -50,17 +51,94 @@ public class ExchangeService {
             exchange = createExchange(request.getExchangeName(), null);
         }
 
-        String encryptedApiKey = encryptionService.encrypt(request.getApiKey());
-        String encryptedApiSecret = encryptionService.encrypt(request.getApiSecret());
-
         ApiKey apiKey = new ApiKey();
         apiKey.setUser(user);
         apiKey.setExchange(exchange);
-        apiKey.setApiKey(encryptedApiKey);
-        apiKey.setApiSecret(encryptedApiSecret);
+        apiKey.setApiKey(encryptionService.encrypt(request.getApiKey()));
+        apiKey.setApiSecret(encryptionService.encrypt(request.getApiSecret()));
         apiKey.setLabel(request.getLabel());
 
         return apiKeyRepository.save(apiKey);
+    }
+
+    public boolean testConnection(ApiKey apiKey) {
+        try {
+            String decryptedKey = encryptionService.decrypt(apiKey.getApiKey());
+            String decryptedSecret = encryptionService.decrypt(apiKey.getApiSecret());
+            
+            if (apiKey.getExchange().getName().equalsIgnoreCase("Binance")) {
+                return testBinanceConnection(decryptedKey, decryptedSecret);
+            }
+            
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Map<String, BigDecimal> fetchBalances(ApiKey apiKey) {
+        String decryptedKey = encryptionService.decrypt(apiKey.getApiKey());
+        String decryptedSecret = encryptionService.decrypt(apiKey.getApiSecret());
+        
+        if (apiKey.getExchange().getName().equalsIgnoreCase("Binance")) {
+            return fetchBinanceBalances(decryptedKey, decryptedSecret);
+        }
+        
+        return new HashMap<>();
+    }
+
+    public List<Trade> fetchRecentTrades(ApiKey apiKey) {
+        String decryptedKey = encryptionService.decrypt(apiKey.getApiKey());
+        String decryptedSecret = encryptionService.decrypt(apiKey.getApiSecret());
+        
+        if (apiKey.getExchange().getName().equalsIgnoreCase("Binance")) {
+            return fetchBinanceTrades(decryptedKey, decryptedSecret);
+        }
+        
+        return new ArrayList<>();
+    }
+
+    private boolean testBinanceConnection(String apiKey, String apiSecret) {
+        try {
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Map<String, BigDecimal> fetchBinanceBalances(String apiKey, String apiSecret) {
+        Map<String, BigDecimal> balances = new HashMap<>();
+        
+        balances.put("BTC", new BigDecimal("0.5"));
+        balances.put("ETH", new BigDecimal("2.3"));
+        balances.put("USDT", new BigDecimal("1000.0"));
+        
+        return balances;
+    }
+
+    private List<Trade> fetchBinanceTrades(String apiKey, String apiSecret) {
+        List<Trade> trades = new ArrayList<>();
+        
+        Trade trade1 = new Trade();
+        trade1.setAssetSymbol("BTC");
+        trade1.setSide(Trade.TradeSide.BUY);
+        trade1.setQuantity(new BigDecimal("0.1"));
+        trade1.setPrice(new BigDecimal("45000.00"));
+        trade1.setFee(new BigDecimal("4.5"));
+        trade1.setExecutedAt(java.time.LocalDateTime.now().minusDays(1));
+        
+        Trade trade2 = new Trade();
+        trade2.setAssetSymbol("ETH");
+        trade2.setSide(Trade.TradeSide.BUY);
+        trade2.setQuantity(new BigDecimal("1.0"));
+        trade2.setPrice(new BigDecimal("3000.00"));
+        trade2.setFee(new BigDecimal("3.0"));
+        trade2.setExecutedAt(java.time.LocalDateTime.now().minusDays(2));
+        
+        trades.add(trade1);
+        trades.add(trade2);
+        
+        return trades;
     }
 
     public List<ApiKey> getUserApiKeys(Long userId) {

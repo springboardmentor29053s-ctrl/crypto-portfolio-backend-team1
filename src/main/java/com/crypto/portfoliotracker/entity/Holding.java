@@ -1,5 +1,7 @@
 package com.crypto.portfoliotracker.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -16,6 +18,7 @@ public class Holding {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     @NotBlank(message = "Asset symbol is required")
@@ -36,6 +39,7 @@ public class Holding {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exchange_id")
+    @JsonIgnoreProperties({"holdings"})
     private Exchange exchange;
 
     @Column(name = "address")

@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
 
 @Service
 public class AuthService {
@@ -29,8 +30,23 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
+    @PostConstruct
+    public void initializeDefaultUser() {
+        try {
+            System.out.println("Checking for existing users...");
+            long userCount = userRepository.count();
+            System.out.println("Current user count: " + userCount);
+            
+            if (userCount == 0) {
+                System.out.println("No users found. Please register a user through the frontend.");
+            } else {
+                System.out.println("Users already exist, skipping default user creation");
+            }
+        } catch (Exception e) {
+            System.err.println("Error initializing default user: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -44,7 +60,13 @@ public class AuthService {
 
         user = userRepository.save(user);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        // Create UserDetails manually
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPassword())
+                .roles("USER")
+                .build();
+        
         String token = jwtUtil.generateToken(userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails);
 
@@ -72,12 +94,18 @@ public class AuthService {
         }
 
         String email = jwtUtil.getUsernameFromToken(refreshToken);
-        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        
+        // Get user from database and create UserDetails
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPassword())
+                .roles("USER")
+                .build();
         
         if (jwtUtil.validateToken(refreshToken, userDetails)) {
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
             String newToken = jwtUtil.generateToken(userDetails);
             String newRefreshToken = jwtUtil.generateRefreshToken(userDetails);
 

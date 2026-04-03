@@ -41,9 +41,6 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Trade> trades;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<RiskAlert> riskAlerts;
-
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -82,7 +79,4 @@ public class User {
 
     public List<Trade> getTrades() { return trades; }
     public void setTrades(List<Trade> trades) { this.trades = trades; }
-
-    public List<RiskAlert> getRiskAlerts() { return riskAlerts; }
-    public void setRiskAlerts(List<RiskAlert> riskAlerts) { this.riskAlerts = riskAlerts; }
 }

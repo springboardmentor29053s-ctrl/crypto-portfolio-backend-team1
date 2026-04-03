@@ -28,18 +28,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) 
             throws ServletException, IOException {
         
+        System.err.println("=== JWT FILTER CALLED ===");
         final String authorizationHeader = request.getHeader("Authorization");
+        System.err.println("Authorization header: " + (authorizationHeader != null ? "Present" : "Missing"));
 
         String username = null;
         String jwt = null;
 
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
+            System.err.println("JWT token extracted: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
             try {
                 username = jwtUtil.getUsernameFromToken(jwt);
+                System.err.println("Username from JWT: " + username);
             } catch (Exception e) {
+                System.err.println("Unable to extract JWT token: " + e.getMessage());
                 logger.error("Unable to extract JWT token", e);
             }
+        } else {
+            System.err.println("No valid Authorization header found");
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
