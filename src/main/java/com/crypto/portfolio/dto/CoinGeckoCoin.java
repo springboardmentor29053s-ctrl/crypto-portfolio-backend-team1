@@ -10,4 +10,7 @@ public class CoinGeckoCoin {
     private String symbol;
 
     private String name;
+
+    // getters and setters
+
 }

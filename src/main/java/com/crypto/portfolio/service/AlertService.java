@@ -12,13 +12,15 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AlertService {
     private final UserRepository userRepository;
     private final AlertRepository alertRepository;
-    private final CryptoMarketService cryptoMarketService;
+    private final PriceCacheService priceCacheService;
     private final PortfolioService portfolioService;
     public void createAlert(String username, AlertRequest request) {
 
@@ -35,6 +37,8 @@ public class AlertService {
                 : null);
         alert.setTargetValue(request.getTargetValue());
         alert.setTriggered(false);
+        alert.setSeen(false); // 🔥 important
+        alert.setTriggeredAt(LocalDateTime.now()); // optional
         alert.setCreatedAt(LocalDateTime.now());
 
         alertRepository.save(alert);
@@ -45,12 +49,21 @@ public class AlertService {
         String symbol = alert.getSymbol();
 
 
-        Double currentPrice =
-                cryptoMarketService.getCurrentPrice(symbol);
+        Map<String, Double> prices =
+                priceCacheService.getPrices(Set.of(symbol));
+
+        Double currentPrice = prices.get(symbol);
+
+        if (currentPrice == null) {
+            System.out.println("⚠️ Price not found for " + symbol);
+            return;
+        }
 
         if (currentPrice >= alert.getTargetValue()) {
 
             alert.setTriggered(true);
+            alert.setSeen(false); // ensure it's visible in notification
+            alert.setTriggeredAt(LocalDateTime.now());
 
             System.out.println("🔥 PRICE ALERT TRIGGERED: " + symbol);
 
@@ -70,6 +83,8 @@ public class AlertService {
         if (profitPercent >= alert.getTargetValue()) {
 
             alert.setTriggered(true);
+            alert.setSeen(false); // ensure it's visible in notification
+            alert.setTriggeredAt(LocalDateTime.now());
 
             System.out.println("🚀 PROFIT ALERT TRIGGERED: " + username);
 
@@ -90,6 +105,30 @@ public class AlertService {
             else if ("PROFIT".equals(alert.getType())) {
                 checkProfitAlert(alert);
             }
+
+            else if ("LOSS".equals(alert.getType())) {
+                checkLossAlert(alert);
+            }
+        }
+    }
+    private void checkLossAlert(Alert alert) {
+
+        String username = alert.getUser().getName();
+
+        PortfolioValueResponse portfolio =
+                portfolioService.getPortfolioValue(username);
+
+        double profitPercent = portfolio.getProfitPercentage();
+
+        if (profitPercent <= alert.getTargetValue()) {
+
+            alert.setTriggered(true);
+            alert.setSeen(false); // ensure it's visible in notification
+            alert.setTriggeredAt(LocalDateTime.now());
+
+            System.out.println("💀 LOSS ALERT TRIGGERED: " + username);
+
+            alertRepository.save(alert);
         }
     }
 }

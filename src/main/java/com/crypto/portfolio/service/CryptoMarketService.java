@@ -42,7 +42,7 @@ public class CryptoMarketService {
 
         long now = System.currentTimeMillis();
 
-        
+        // 🔥 Step 1: Refresh cache if needed
         if (cachedDashboard == null || (now - dashboardLastUpdated) > DASHBOARD_CACHE_DURATION) {
 
             synchronized (dashboardLock) {
@@ -88,6 +88,7 @@ public class CryptoMarketService {
             }
         }
 
+        // 🔥 Step 2: Pagination from cached data
         List<CryptoCoin_dto> fullList = cachedDashboard.getContent();
 
         int start = Math.max((page - 1) * size, 0);
@@ -99,7 +100,7 @@ public class CryptoMarketService {
             paginatedList = fullList.subList(start, end);
         }
 
-    
+        // 🔥 Step 3: Build response
         PageResponse_dto<CryptoCoin_dto> response = new PageResponse_dto<>();
 
         response.setContent(paginatedList);
@@ -135,7 +136,7 @@ public class CryptoMarketService {
 
             System.out.println("CoinGecko rate limit reached. Returning empty chart.");
 
-            return new CoinChartResponse(); 
+            return new CoinChartResponse(); // prevent crash
         }
     }
 
@@ -163,7 +164,9 @@ public class CryptoMarketService {
 
         Number price = (Number) coinData.get("usd");
         return price.doubleValue();
-
+/*test symbol and its value
+        System.out.println("SYMBOL: " + symbol);
+        System.out.println("COIN ID: " + coinId);*/
 
     }
 
@@ -182,7 +185,7 @@ public class CryptoMarketService {
                 );
             }
 
-            
+            // ✅ Force correct mappings (VERY IMPORTANT)
             symbolToId.put("BTC", "bitcoin");
             symbolToId.put("ETH", "ethereum");
             symbolToId.put("BNB", "binancecoin");
@@ -193,7 +196,7 @@ public class CryptoMarketService {
             symbolToId.put("DOGE", "dogecoin");
             symbolToId.put("TRX", "tron");
             symbolToId.put("USDC", "usd-coin");
-            symbolToId.put("LEO", "leo-token");   
+            symbolToId.put("LEO", "leo-token");   // 🔥 VERY IMPORTANT
 
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -236,12 +239,12 @@ public class CryptoMarketService {
 
             if (coinData == null || coinData.get("usd") == null) {
                 System.out.println("⚠️ Missing price for coin id: " + id);
-                continue; 
+                continue; // skip safely
             }
 
             Number price = (Number) coinData.get("usd");
 
-            
+            // 🔥 convert ID → SYMBOL
             String symbol = symbolToId.entrySet()
                     .stream()
                     .filter(entry -> entry.getValue().equals(id))
@@ -260,7 +263,7 @@ public class CryptoMarketService {
         return symbolToId.get(symbol.toUpperCase());
     }
 
-    
+    // neww
     public Map<String, String> getCoinIds(List<String> symbols) {
 
         Map<String, String> coinIds = new HashMap<>();

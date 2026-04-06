@@ -2,6 +2,7 @@ package com.crypto.portfolio.controller;
 
 import com.crypto.portfolio.dto.AlertRequest;
 import com.crypto.portfolio.dto.AlertResponse;
+import com.crypto.portfolio.model.Alert;
 import com.crypto.portfolio.model.User;
 import com.crypto.portfolio.repository.AlertRepository;
 import com.crypto.portfolio.repository.ExchangeRepository;
@@ -56,5 +57,48 @@ public class AlertController {
                         a.getTriggered()
                 ))
                 .toList();
+    }
+
+    @GetMapping("/notifications")
+    public List<AlertResponse> getTriggeredAlerts() {
+
+        String username = (String) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        User user = userRepository.findByName(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return alertRepository
+                .findByUserAndTriggeredTrueAndSeenFalse(user)
+                .stream()
+                .map(a -> new AlertResponse(
+                        a.getType(),
+                        a.getSymbol(),
+                        a.getTargetValue(),
+                        a.getTriggered()
+                ))
+                .toList();
+    }
+    @PutMapping("/notifications/mark-seen")
+    public String markNotificationsSeen() {
+
+        String username = (String) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        User user = userRepository.findByName(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<Alert> alerts =
+                alertRepository.findByUserAndTriggeredTrueAndSeenFalse(user);
+
+        for (Alert alert : alerts) {
+            alert.setSeen(true);
+        }
+        alertRepository.saveAll(alerts);
+        return "Notifications cleared";
     }
 }

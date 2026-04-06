@@ -8,7 +8,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CreateExchangeRequest {
-
+// add exchanges
     private String name;
     private String baseUrl;
 }

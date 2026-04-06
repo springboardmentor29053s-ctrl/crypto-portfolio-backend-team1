@@ -15,7 +15,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.concurrent.Exchanger;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +30,7 @@ public class BinanceService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-
+    // 🔥 MAIN ENTRY
     public void syncAll(String username) {
         syncBalances(username);
         syncTrades(username);
@@ -44,7 +43,7 @@ public class BinanceService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Exchange exchange = exchangeRepository
-                .findByNameIgnoreCase("BINANCE")   
+                .findByNameIgnoreCase("BINANCE")   // ✅ FIXED
                 .orElseThrow(() -> new RuntimeException("Exchange not found"));
 
         ApiKey apiKey = apiKeyRepository
@@ -88,7 +87,7 @@ public class BinanceService {
             saveOrUpdateHolding(user, exchange, asset, total);
         }
 
-        
+        // 🔥 FIXED: DO NOT DELETE
         List<Holding> existingHoldings =
                 holdingRepository.findByUserAndExchange(user, exchange);
 
@@ -154,7 +153,7 @@ public class BinanceService {
             String assetSymbols = holding.getAssetSymbol().toUpperCase();
             String binanceSymbol = assetSymbols + "USDT";
 
-            
+            // 🔥 STEP 1: Get last synced trade
             Optional<Trade> lastTradeOpt =
                     tradeRepository.findTopByUserAndExchangeAndAssetSymbolOrderByExecutedAtDesc(
                             user, exchange, assetSymbols

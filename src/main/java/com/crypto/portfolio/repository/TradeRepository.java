@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
-    
+    //List<Trade> findByUser(User user);
     List<Trade> findByUserOrderByExecutedAtDesc(User user);
     Optional<Trade> findByExchangeIdAndExecutedAtAndAssetSymbol(
             Long exchangeId,

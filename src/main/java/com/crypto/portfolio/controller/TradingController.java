@@ -32,6 +32,10 @@ public class TradingController {
         return tradingService.sellCrypto(request);
     }
 
+    /*@GetMapping("/history")
+    public List<TradeResponse> getTradeHistory() {
+        return tradingService.getTradeHistory();
+    }*/
     @GetMapping("/history")
     public Page<TradeResponse> getTradeHistory(
             @RequestParam(defaultValue = "0") int page,

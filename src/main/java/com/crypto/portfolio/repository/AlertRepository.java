@@ -13,4 +13,6 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByUserAndTriggeredFalse(User user);
 
     List<Alert> findByTriggeredFalse();
+    List<Alert> findByUserAndTriggeredTrue(User user);
+    List<Alert> findByUserAndTriggeredTrueAndSeenFalse(User user);
 }

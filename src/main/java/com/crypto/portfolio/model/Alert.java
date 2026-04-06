@@ -16,15 +16,18 @@ public class Alert {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String type; // PRICE / PROFIT
+    private String type; 
 
     private String symbol; 
 
     private Double targetValue;
 
     private Boolean triggered = false;
+    private LocalDateTime triggeredAt;
 
     private LocalDateTime createdAt;
+    @Column(name = "seen")
+    private Boolean seen = false;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

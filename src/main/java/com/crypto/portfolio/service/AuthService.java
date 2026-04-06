@@ -35,13 +35,13 @@ public class AuthService {
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword())); // plain for now
+        user.setPassword(passwordEncoder.encode(request.getPassword())); 
         user.setCreatedAt(LocalDateTime.now());
 
         // Create Wallet
         Wallet wallet = new Wallet();
         wallet.setUser(user);
-        wallet.setBalance(1000000.0);   // starting demo
+        wallet.setBalance(1000000.0);   
 
         // Link wallet to user
         user.setWallet(wallet);

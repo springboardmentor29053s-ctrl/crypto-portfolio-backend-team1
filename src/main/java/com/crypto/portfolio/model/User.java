@@ -11,6 +11,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+//@ToString(exclude = {"trades","holdings","apiKeys","riskAlerts"})
 @Entity
 @Table(name = "users")
 public class User {
@@ -34,4 +35,5 @@ public class User {
     @JsonIgnore
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Wallet wallet;
+
 }

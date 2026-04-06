@@ -31,15 +31,15 @@ public class ExchangeService {
 
     public Exchange createExchange(CreateExchangeRequest request) {
 
-        
+        // 🔍 check if already exists
         Optional<Exchange> existing =
                 exchangeRepository.findByName(request.getName());
 
         if (existing.isPresent()) {
-            return existing.get(); 
+            return existing.get(); // ✅ return existing instead of error
         }
 
-        
+        // 🆕 create new exchange
         Exchange exchange = new Exchange();
         exchange.setName(request.getName());
         exchange.setBaseUrl(request.getBaseUrl());

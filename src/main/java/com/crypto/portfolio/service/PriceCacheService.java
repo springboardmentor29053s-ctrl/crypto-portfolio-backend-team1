@@ -38,10 +38,21 @@ public class PriceCacheService {
 
                     try {
                         System.out.println("🔄 Refreshing prices from API...");
-                        cachedPrices = cryptoMarketService.getPrices(new ArrayList<>(allSymbols));
-                        lastUpdated = now;
+
+                        Map<String, Double> freshPrices =
+                                cryptoMarketService.getPrices(new ArrayList<>(allSymbols));
+
+                        if (freshPrices != null && !freshPrices.isEmpty()) {
+                            cachedPrices = freshPrices;
+                            lastUpdated = now;
+                        }
+
                     } catch (Exception ex) {
                         System.out.println("⚠️ Using old cached prices");
+
+                        if (cachedPrices.isEmpty()) {
+                            throw new RuntimeException("No price data available");
+                        }
                     }
                 }
             }

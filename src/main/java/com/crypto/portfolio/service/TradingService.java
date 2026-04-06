@@ -35,7 +35,7 @@ public class TradingService {
     private final BinanceClient binanceClient;
     private final ExchangeService exchangeService;
     private final TradeAnalysisService tradeAnalysisService;
-    
+    //private final UserRepository userRepository;
 
     // buy crypto
 
@@ -56,7 +56,7 @@ public class TradingService {
 
         String symbol = request.getSymbol().toUpperCase();
 
-        // ✅ ALWAYS FETCH FROM BACKEND
+        
         Double price = cryptoMarketService.getCurrentPrice(symbol);
 
         if (price == null || price <= 0) {

@@ -22,6 +22,13 @@ public class AuthController {
         return authService.login(request);
     }
 
+    /*public JwtResponse_dto login(@RequestBody Login_dto request) {
+
+        String token = authService.login(request);
+
+        return new JwtResponse_dto(token, "Bearer");
+    }*/
+
     @PostMapping("/forgot-password")
     public String forgotPassword(
             @RequestBody ForgotPassword_dto request
