@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 @Data
 public class HoldingRequest {
 
-    private Integer exchangeId;
+    private Long exchangeId;
     private String assetSymbol;
     private BigDecimal quantity;
     private BigDecimal avgCost;

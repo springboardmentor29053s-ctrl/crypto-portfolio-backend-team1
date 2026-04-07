@@ -1,97 +1,91 @@
 package com.crypto.cryptoPortfolio.controller;
 
-import com.crypto.cryptoPortfolio.entity.Trade;
 import com.crypto.cryptoPortfolio.entity.User;
-import com.crypto.cryptoPortfolio.repository.TradeRepository;
 import com.crypto.cryptoPortfolio.repository.UserRepository;
+import com.crypto.cryptoPortfolio.service.CsvExportService;
 import com.crypto.cryptoPortfolio.service.PnlService;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/pnl")
 public class PnlController {
 
     private final PnlService       pnlService;
-    private final TradeRepository  tradeRepository;
+    private final CsvExportService csvExportService;
     private final UserRepository   userRepository;
 
     public PnlController(PnlService pnlService,
-                         TradeRepository tradeRepository,
+                         CsvExportService csvExportService,
                          UserRepository userRepository) {
-        this.pnlService      = pnlService;
-        this.tradeRepository = tradeRepository;
-        this.userRepository  = userRepository;
+        this.pnlService       = pnlService;
+        this.csvExportService = csvExportService;
+        this.userRepository   = userRepository;
     }
 
-    /**
-     * GET /api/pnl/summary
-     * Returns realized P&L per coin + totals.
-     */
+    // ── Existing endpoint — your frontend calls GET /pnl/summary ─────────────
     @GetMapping("/summary")
-    public ResponseEntity<PnlService.PnlSummaryResponse> getPnlSummary() {
+    public ResponseEntity<?> getPnlSummary() {
         User user = getAuthenticatedUser();
+        // ✅ Calls getPnlSummary() — matches your PnlService method name exactly
         return ResponseEntity.ok(pnlService.getPnlSummary(user.getId()));
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // CSV Export endpoints
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
      * GET /api/pnl/export/csv
-     * Downloads full trade history as a CSV file.
+     *
+     * ✅ Matches your existing frontend call: /pnl/export/csv
+     * Trade history CSV — same format as your existing export
+     * + adds Realized P&L column for SELL rows.
      */
     @GetMapping("/export/csv")
-    public ResponseEntity<byte[]> exportCsv() {
+    public ResponseEntity<byte[]> exportTradeHistory() {
         User user = getAuthenticatedUser();
-
-        List<Trade> trades = tradeRepository.findByUserIdOrderByExecutedAtDesc(user.getId());
-
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss");
-
-        StringBuilder csv = new StringBuilder();
-        csv.append("Date,Symbol,Type,Quantity,Price (USD),Total (USD),Status\n");
-
-        for (Trade trade : trades) {
-            // BigDecimal fields - safe .doubleValue()
-            double qty   = trade.getQuantity() != null ? trade.getQuantity().doubleValue() : 0.0;
-            double price = trade.getPrice()    != null ? trade.getPrice().doubleValue()    : 0.0;
-            double total = qty * price;
-
-            String dateStr = trade.getExecutedAt() != null
-                    ? trade.getExecutedAt().format(fmt) : "";
-
-            // TradeSide enum - use .name() to get "BUY" or "SELL"
-            String side = trade.getSide() != null ? trade.getSide().name() : "";
-
-            csv.append(String.format("%s,%s,%s,%.8f,%.6f,%.2f,COMPLETED\n",
-                    dateStr,
-                    trade.getAssetSymbol(),
-                    side,
-                    qty,
-                    price,
-                    total
-            ));
-        }
-
-        byte[] bytes = csv.toString().getBytes();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType("text/csv"));
-        headers.setContentDispositionFormData("attachment", "trade_history.csv");
-        headers.setContentLength(bytes.length);
-
-        return ResponseEntity.ok().headers(headers).body(bytes);
+        String csv = csvExportService.generateTradeHistoryCsv(user.getId());
+        String filename = "trade_history_" + LocalDate.now() + ".csv";
+        return buildCsvResponse(csv, filename);
     }
 
-    // Helper
+    /**
+     * GET /api/pnl/export/tax
+     * GET /api/pnl/export/tax?year=2026
+     *
+     * Tax report CSV — SELL trades only with FIFO cost basis.
+     * Optional year filter. Summary totals at the bottom.
+     */
+    @GetMapping("/export/tax")
+    public ResponseEntity<byte[]> exportTaxReport(
+            @RequestParam(required = false) Integer year) {
+        User user = getAuthenticatedUser();
+        String csv = csvExportService.generateTaxReportCsv(user.getId(), year);
+        String filename = "tax_report_" + (year != null ? year : "all") + ".csv";
+        return buildCsvResponse(csv, filename);
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private ResponseEntity<byte[]> buildCsvResponse(String csv, String filename) {
+        byte[] bytes = csv.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .contentLength(bytes.length)
+                .body(bytes);
+    }
+
     private User getAuthenticatedUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return userRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found: " + auth.getName()));
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

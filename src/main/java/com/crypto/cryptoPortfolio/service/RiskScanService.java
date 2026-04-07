@@ -64,16 +64,18 @@ public class RiskScanService {
      * and from RiskScheduler (automated every 6 hours).
      */
     public int scanUserHoldings(User user) {
+        log.info("🚀 Risk scan started for user {}", user.getId());
         List<Holding> holdings = holdingRepository.findByUserId(user.getId());
         int alertsCreated = 0;
 
         for (Holding holding : holdings) {
+            log.info("🔍 Checking asset: {}", holding.getAssetSymbol());
             String symbol = holding.getAssetSymbol()
                     .replace("USDT", "")
                     .replace("BTC",  "")
                     .toUpperCase()
                     .trim();
-
+            log.info("✅ Scan logic reached for {}", symbol);
             // ── DEDUP: skip if we already alerted this user for this asset in last 24h ──
             Instant since = Instant.now().minus(24, ChronoUnit.HOURS);
             if (riskAlertRepository.existsByUserIdAndAssetSymbolAndCreatedAtAfter(
@@ -95,18 +97,21 @@ public class RiskScanService {
             // ── CHECK 2: Etherscan contract check (only for ERC-20 tokens we know) ──
             String contractAddress = SYMBOL_TO_CONTRACT.get(symbol);
             if (contractAddress != null) {
+                log.info("📡 Calling Etherscan for {}", contractAddress);
                 String reputation = etherscanService.checkContractReputation(contractAddress);
                 boolean sourceVerified = etherscanService.isSourceCodeVerified(contractAddress);
 
                 if ("unverified".equals(reputation)) {
                     createAlert(user.getId(), holding.getAssetSymbol(),
                             RiskAlert.AlertType.contract_risk,
-                            String.format("⚠️ %s contract (%s) is unverified on Etherscan.", symbol, contractAddress));
+                            "⚠️ Contract is unverified on Etherscan.");
                     alertsCreated++;
-                } else if (!sourceVerified) {
+                }
+
+                if (!sourceVerified) {
                     createAlert(user.getId(), holding.getAssetSymbol(),
                             RiskAlert.AlertType.contract_risk,
-                            String.format("⚠️ %s contract source code is not publicly verified on Etherscan.", symbol));
+                            "⚠️ Contract source code is not verified.");
                     alertsCreated++;
                 }
 
@@ -145,6 +150,8 @@ public class RiskScanService {
         alert.setCreatedAt(Instant.now());
         riskAlertRepository.save(alert);
         log.info("Alert created: userId={} symbol={} type={}", userId, assetSymbol, type);
+        log.info("Checking asset: {}", assetSymbol);
+
     }
 
     private void cacheScamToken(String address, String chain,
@@ -158,4 +165,6 @@ public class RiskScanService {
             scamTokenRepository.save(token);
         }
     }
+
+
 }

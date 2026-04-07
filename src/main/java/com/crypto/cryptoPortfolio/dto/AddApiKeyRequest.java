@@ -2,13 +2,18 @@ package com.crypto.cryptoPortfolio.dto;
 
 public class AddApiKeyRequest {
 
-    private Integer exchangeId;
+    private Long exchangeId;
     private String apiKey;
     private String apiSecret;
     private String label;
 
-    public Integer getExchangeId() { return exchangeId; }
-    public void setExchangeId(Integer exchangeId) { this.exchangeId = exchangeId; }
+    public Long getExchangeId() {
+        return exchangeId;
+    }
+
+    public void setExchangeId(Long exchangeId) {
+        this.exchangeId = exchangeId;
+    }
 
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }

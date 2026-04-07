@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * Fetches crypto news from cryptocurrency.cv
  * Completely FREE — no API key, no registration needed.
  *
- * Endpoint: GET https://cryptocurrency.cv/api/archive?ticker=ETH&limit=10
+ * Endpoint: GET https://min-api.cryptocompare.com/data/v2/news/?lang=EN
  *
  * Just set app.news.enabled=true in application.properties — nothing else needed.
  */
@@ -32,7 +32,7 @@ public class NewsService {
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
 
     private static final String BASE_URL =
-            "https://cryptocurrency.cv/api/archive?ticker=%s&limit=10";
+            "https://min-api.cryptocompare.com/data/v2/news/?lang=EN";
 
     private static final long NEWS_WINDOW_HOURS = 6;
     private static final long DEDUP_HOURS = 24;

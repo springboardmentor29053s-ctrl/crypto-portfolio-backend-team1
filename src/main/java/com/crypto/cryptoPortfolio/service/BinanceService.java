@@ -70,7 +70,7 @@ public class BinanceService {
         String apiKey = encryptionUtil.decrypt(apiKeyEntity.getApiKey()).trim();
         String secret = encryptionUtil.decrypt(apiKeyEntity.getApiSecret()).trim();
 
-        long timestamp = fetchBinanceServerTime(); // ✅ Fixed
+        long timestamp = fetchBinanceServerTime();
 
         String queryString = "symbol=" + symbol +
                 "&timestamp=" + timestamp;
@@ -103,7 +103,7 @@ public class BinanceService {
         String apiKey = encryptionUtil.decrypt(apiKeyEntity.getApiKey()).trim();
         String secret = encryptionUtil.decrypt(apiKeyEntity.getApiSecret()).trim();
 
-        long timestamp = fetchBinanceServerTime(); // ✅ Fixed
+        long timestamp = fetchBinanceServerTime();
         String queryString = "timestamp=" + timestamp;
 
         String signature = HmacUtil.generateSignature(secret, queryString);
@@ -214,7 +214,7 @@ public class BinanceService {
         String apiKey = encryptionUtil.decrypt(apiKeyEntity.getApiKey()).trim();
         String secret = encryptionUtil.decrypt(apiKeyEntity.getApiSecret()).trim();
 
-        long timestamp = fetchBinanceServerTime(); // ✅ Fixed
+        long timestamp = fetchBinanceServerTime();
         symbol = symbol.toUpperCase();
 
         String queryString =

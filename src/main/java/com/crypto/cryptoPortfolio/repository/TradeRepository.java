@@ -29,4 +29,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     // ── ADD THIS NEW METHOD for PnlService (needs ascending order for FIFO) ──
     List<Trade> findByUserIdOrderByExecutedAtAsc(Long userId);
     List<Trade> findByUserIdOrderByExecutedAtDesc(Long userId);
+
+
 }

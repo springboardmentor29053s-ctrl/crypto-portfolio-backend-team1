@@ -13,6 +13,6 @@ public class TradeRequest {
     private BigDecimal quantity;
     private BigDecimal price;
     private BigDecimal fee;
-    private Integer exchangeId;
+    private Long exchangeId;
     private LocalDateTime executedAt;
 }

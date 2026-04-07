@@ -51,24 +51,24 @@ public class LoginController {
         ));
     }
 
-    @PostMapping("/signup")
-    public ResponseEntity<String> signup(
-            @Valid @RequestBody SignupRequest request) {
-
-        if (repo.existsByEmail(request.getEmail())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Email already registered");
-        }
-
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-        repo.save(user);
-        return ResponseEntity.ok("Registration Successful");
-    }
+//    @PostMapping("/signup")
+//    public ResponseEntity<String> signup(
+//            @Valid @RequestBody SignupRequest request) {
+//
+//        if (repo.existsByEmail(request.getEmail())) {
+//            return ResponseEntity
+//                    .badRequest()
+//                    .body("Email already registered");
+//        }
+//
+//        User user = new User();
+//        user.setName(request.getName());
+//        user.setEmail(request.getEmail());
+//        user.setPassword(passwordEncoder.encode(request.getPassword()));
+//
+//        repo.save(user);
+//        return ResponseEntity.ok("Registration Successful");
+//    }
 
 //    @GetMapping("/test-auth")
 //    public String testAuth(Authentication authentication) {

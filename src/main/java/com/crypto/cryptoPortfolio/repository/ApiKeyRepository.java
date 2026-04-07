@@ -14,4 +14,6 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
     boolean existsByUserAndExchange(User user, Exchange exchange);
 
     List<ApiKey> findByUser(User user);
+
+    List<ApiKey> findByUserId(Long userId);
 }

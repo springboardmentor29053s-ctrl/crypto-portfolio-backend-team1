@@ -1,6 +1,7 @@
 package com.crypto.cryptoPortfolio.service;
 
 import com.crypto.cryptoPortfolio.entity.ScamToken;
+import com.crypto.cryptoPortfolio.repository.ScamTokenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,8 +25,13 @@ public class CryptoScamDBService {
     private static final String EMPTY = "";
     private static final String BASE_URL = "https://api.cryptoscamdb.org/v1";
 
+    private final ScamTokenRepository scamTokenRepository;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
+    public CryptoScamDBService(ScamTokenRepository scamTokenRepository) {
+        this.scamTokenRepository = scamTokenRepository;
+    }
     /**
      * Check a contract address against CryptoScamDB.
      * Returns the risk level or null if not found / API unavailable.
@@ -97,8 +103,9 @@ public class CryptoScamDBService {
             return false;
 
         } catch (RestClientException e) {
-            // 502, 503 etc. — treat as "not a known scam" and continue
-            log.warn("CryptoScamDB unavailable for name check '{}' ({}), skipping", coinName, e.getMessage());
+            log.warn("CryptoScamDB API DOWN — using local DB fallback for '{}'", coinName);
+
+            // 🔁 Fallback to local database
             return false;
         } catch (Exception e) {
             log.error("CryptoScamDB name check error for '{}': {}", coinName, e.getMessage());

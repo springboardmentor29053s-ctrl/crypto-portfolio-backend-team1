@@ -29,7 +29,7 @@ public class PortfolioController {
 
     @GetMapping("/holdings")
     public List<HoldingResponse> getHoldings(
-            @RequestParam Integer exchangeId,
+            @RequestParam Long exchangeId,
             Principal principal) {
 
         Exchange exchange = exchangeRepository.findById(exchangeId)

@@ -20,11 +20,11 @@ public class ApiKeyService {
         this.encryptionUtil = encryptionUtil;
     }
 
-    public void addApiKey(Integer exchangeId,
-                          String apiKey,
-                          String apiSecret,
-                          String label,
-                          User user) {
+    public ApiKey addApiKey(Long exchangeId,
+                            String apiKey,
+                            String apiSecret,
+                            String label,
+                            User user) {
 
         Exchange exchange = exchangeRepository.findById(exchangeId)
                 .orElseThrow(() -> new RuntimeException("Exchange not found"));
@@ -37,8 +37,7 @@ public class ApiKeyService {
             existing.setApiKey(encryptionUtil.encrypt(apiKey));
             existing.setApiSecret(encryptionUtil.encrypt(apiSecret));
             existing.setLabel(label);
-            apiKeyRepository.save(existing);
-            return;
+            return apiKeyRepository.save(existing); // ✅ return here
         }
 
         ApiKey newKey = new ApiKey();
@@ -48,6 +47,6 @@ public class ApiKeyService {
         newKey.setApiSecret(encryptionUtil.encrypt(apiSecret));
         newKey.setLabel(label);
 
-        apiKeyRepository.save(newKey);
+        return apiKeyRepository.save(newKey); // ✅ return here
     }
 }

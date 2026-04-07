@@ -13,7 +13,7 @@ public interface HoldingRepository
         extends JpaRepository<Holding, Long> {
 
     List<Holding> findByUserId(Long userId);
-    List<Holding> findByUserIdAndExchangeId(Long userId, Integer exchangeId);
+    List<Holding> findByUserIdAndExchangeId(Long userId, Long exchangeId);
     Optional<Holding> findByUserIdAndExchangeIdAndAssetSymbol(
             Long userId, Integer exchangeId, String assetSymbol
     );
